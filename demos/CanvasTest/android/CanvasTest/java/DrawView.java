@@ -5,17 +5,18 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.view.View;
 import android.content.Context;
 
 public class DrawView extends View {
 
 
-	public DrawView(/* Context  */ context) {
+	public DrawView(Context  context) {
         super(context);
     }
 
     @Override 
-	public  void  onDraw(/* Canvas  */ canvas) {
+	public  void  onDraw(Canvas  canvas) {
         super.onDraw(canvas);
 
         Paint paint = new Paint();

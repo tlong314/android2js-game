@@ -4,11 +4,12 @@ import android.graphics.Canvas;
 import android.app.Activity;
 import android.view.*;
 import android.os.Bundle;
+import android.view.View;
 
-class MainActivity extends Activity {
+public class MainActivity extends Activity {
 
     @Override 
-    protected  void  onCreate(/* Bundle  */ savedInstanceState) {
+    public  void  onCreate(Bundle  savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         this.setTitle("Canvas Demo");
