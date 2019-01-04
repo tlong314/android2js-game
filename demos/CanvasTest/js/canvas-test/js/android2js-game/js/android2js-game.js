@@ -4,7 +4,7 @@
  * ECMAScript 6 code, and to help beginning game devs working
  * in one language to learn more about the other.
  * @author Tim S. Long <tim@timlongcreative.com>
- * @copyright Tim S. Long 2018
+ * @copyright Tim S. Long 2019
  * @license MIT
  */
 
@@ -16,15 +16,19 @@
  * the game title (for instance, you can add spaces here)
  *
  * Take your icon image, rename it "ic_launcher.png" and add it to the
- * "app/src/main/res/mipmap" folders. Alternately, save it as your own name, and
- * replace the "android:icon" attribute value of <application> to your
- * file name.
+ * "app/src/main/res/mipmap" folders. Alternately, save it as a custom
+ * filename and replace the "android:icon" attribute value of <application>
+ * to your filename.
  * Better yet, in newer versions of Android Studio, choose New ->
  * Image Asset, Icon Type: "Launcher Icons", "Asset Type": Image,
  * then choose the correct Path to the image.
  *
  * To include audio/video resources, create a directory named "raw"
  * within the app/res directory, and add the resources there.
+ *
+ * Remember that for Android, your custom image, audio, video, etc. files
+ * should have filenames all in lowercase (use underscores to separate
+ * words), such as my_img.png, some_song1.wav, etc.
  */
 
 /**
@@ -35,10 +39,10 @@
  * decodeResource on a screen with 2.0 screen density (found via
  * Activity.getResources().getMetrics().density)
  * then it will actually create an image fill with dimensions 900px x 300px.
- * Note that we may also want to redefine createScaledBitmap, as this should
+ * We may also want to redefine createScaledBitmap, as this should
  * probably take screen density into account for its internal calculations...
  */
- 
+
 "use strict";
 
 // These static methods are included in the Java Android Math class
@@ -76,8 +80,11 @@ const SOUND_POOL_CONSTRUCTOR_KEY = 1 + Math.random();
 
 // Options
 window.Android2JSGame = {
-	// onload: function,
-	// startOnEnterFullscreen: boolean
+	onload: null,
+	startOnEnterFullscreen: true,
+	allowTouchInput: true,
+	allowMouseInput: false,
+	interruptToSleep: false
 };
 
 // Declare some "constants": game canvas, its context and dimensions
@@ -124,6 +131,11 @@ window.addEventListener("DOMContentLoaded", function() {
 	// "raw" directory is used for storing audio and video resources.
 	if(typeof window.R.raw === "undefined") {
 		window.R.raw = {};
+	}
+
+	// Decide if we should interrupt all current processes during Thread sleep() method
+	if(Android2JSGame.interruptToSleep) {
+		Thread.prototype.sleep = Thread.prototype.freezeToSleep;
 	}
 
 	// Gather information about game images, to manage loading before running game
@@ -201,7 +213,7 @@ function initiateAndroid2JSGame() {
 	window.Android2JSGameFSButton.style.zIndex = "100"; // Put above canvas
 	window.Android2JSGameFSButton.id = "a2js_fs_btn"; // For CSS reference
 	document.body.appendChild(window.Android2JSGameFSButton);
-	window.Android2JSGameFSButton.src = "js/android2js/img/a2js_fs_btn.png";
+	window.Android2JSGameFSButton.src = "js/android2js-game/img/a2js_fs_btn.png";
 
 	// Lets the dev define their own additional JS onload actions, like hiding a loading screen.
 	if(typeof Android2JSGame.onload === "function") {
@@ -507,7 +519,7 @@ class MotionEvent {
 					this.x[i] = e.targetTouches[i].clientX - rect.left;
 					this.y[i] = e.targetTouches[i].clientY - rect.top;
 				}
-			break;
+				break;
 			case "touchmove":
 				this.action = MotionEvent.ACTION_MOVE;
 				this.pointerCount = e.targetTouches.length;
@@ -516,7 +528,7 @@ class MotionEvent {
 					this.x[i] = e.targetTouches[i].clientX - rect.left;
 					this.y[i] = e.targetTouches[i].clientY - rect.top;
 				}
-			break;
+				break;
 			case "touchend":
 				this.action = MotionEvent.ACTION_UP;
 				this.pointerCount = e.changedTouches.length;
@@ -525,7 +537,30 @@ class MotionEvent {
 					this.x[i] = e.changedTouches[i].clientX - rect.left;
 					this.y[i] = e.changedTouches[i].clientY - rect.top;
 				}
-			break;
+				break;
+			
+			// Handle actions if Android2JSGame.allowMouseInput is set to true
+			case "mousedown":
+				this.action = MotionEvent.ACTION_DOWN;
+				this.pointerCount = 1;
+
+				this.x[0] = e.clientX - rect.left;
+				this.y[0] = e.clientY - rect.top;
+				break;
+			case "mousemove": // Only called if mouse is down
+				this.action = MotionEvent.ACTION_MOVE;
+				this.pointerCount = 1;
+
+				this.x[0] = e.clientX - rect.left;
+				this.y[0] = e.clientY - rect.top;
+				break;
+			case "mouseup":
+				this.action = MotionEvent.ACTION_UP;
+				this.pointerCount = 1;
+
+				this.x[0] = e.clientX - rect.left;
+				this.y[0] = e.clientY - rect.top;
+				break;
 		}
 	}
 
@@ -582,7 +617,7 @@ MotionEvent.ACTION_UP = 2;
 // Emulates GestureDetector methods
 class GestureDetector {
 	constructor() {
-		console.log("GestureDetector is not currently supported by android2js");
+		console.log("GestureDetector is not currently supported by android2js-game.js");
 		
 		this.context = arguments[0];
 		this.gestureListener = arguments[1];
@@ -629,7 +664,7 @@ GestureDetector.OnContextClickListener = function() {
  */
 GestureDetector.SimpleOnGestureListener = class {
 	constructor() {
-		console.log("GestureDetector.SimpleOnGestureListener is not currently " + "supported by android2js");
+		console.log("GestureDetector.SimpleOnGestureListener is not currently " + "supported by android2js-game.js");
 	}
 
 	onContextClick(motionEvent) {}
@@ -742,7 +777,7 @@ class Context {
 					}
 				};
 			default:
-				console.warn("Service " + service + " not recognized by android2js.");
+				console.warn("Service " + service + " not recognized by android2js-game.js");
 		}
 	}
 }
@@ -1016,7 +1051,7 @@ class AppCompatActivity extends Activity {
 /** Unused, included only to prevent thrown errors. */
 class ActivityManager {
 	constructor() {
-		console.error("ActivityManager class is not supported by android2js " +
+		console.error("ActivityManager class is not supported by android2js-game.js " +
 		"and is recommended only for debugging purposes (not for runtime).");
 	}
 }
@@ -2133,15 +2168,14 @@ class Thread extends Runnable {
 	/**
 	 * Note: this could cause performance issues if it is used often.
 	 * Try to rewrite your code to avoid sleeping.
-	 * If you feel this process causes too much of a performance hit,
-	 * or drains resources, you can uncomment the setTimeout version
-	 * that follows this one below; but note the comments about how
-	 * that one works with the animation cycle.
+	 * You can use this method by setting it in your options.
+	 *
+	 * Android2JSGame.interruptToSleep = true;
+	 *
 	 * @param {number} waitTime - The delay in milliseconds until the
 	 *   next animation starts.
 	 */
-	/*
-	sleep(msec) {
+	freezeToSleep(msec) {
 		let startTime = performance.now();
 		let currentTime = performance.now();
 
@@ -2159,7 +2193,6 @@ class Thread extends Runnable {
 			currentTime = performance.now();
 		}
 	}
-	*/
 
 	/**
 	 * Note:this version does not work the same as it would in Java. Instead
@@ -2578,23 +2611,51 @@ class SurfaceHolder {
 	}
 
 	addCallback(gamePanel) {
-		window.Android2JSGameCanvas.addEventListener("touchstart", function(e) {
-			e.preventDefault(); // Prevent mouse and click events from triggering
+		if(Android2JSGame.allowTouchInput) {
+			window.Android2JSGameCanvas.addEventListener("touchstart", function(e) {
+				e.preventDefault(); // Prevent mouse and click events from triggering
 
-			gamePanel.onTouchEvent.call(gamePanel, new MotionEvent(e));
-		}, /* supportsPassive ? {passive: true} : */ false);
+				gamePanel.onTouchEvent.call(gamePanel, new MotionEvent(e));
+			}, /* supportsPassive ? {passive: true} : */ false);
 
-		window.Android2JSGameCanvas.addEventListener("touchmove", function(e) {
-			e.preventDefault(); // Prevent mouse and click events from triggering
+			window.Android2JSGameCanvas.addEventListener("touchmove", function(e) {
+				e.preventDefault(); // Prevent mouse and click events from triggering
 
-			gamePanel.onTouchEvent.call(gamePanel, new MotionEvent(e));
-		}, /* supportsPassive ? {passive: true} : */ false);
+				gamePanel.onTouchEvent.call(gamePanel, new MotionEvent(e));
+			}, /* supportsPassive ? {passive: true} : */ false);
 
-		window.Android2JSGameCanvas.addEventListener("touchend", function(e) {
-			e.preventDefault(); // Prevent mouse and click events from triggering
+			window.Android2JSGameCanvas.addEventListener("touchend", function(e) {
+				e.preventDefault(); // Prevent mouse and click events from triggering
 
-			gamePanel.onTouchEvent.call(gamePanel, new MotionEvent(e));
-		}, /* supportsPassive ? {passive: true} : */ false);
+				gamePanel.onTouchEvent.call(gamePanel, new MotionEvent(e));
+			}, /* supportsPassive ? {passive: true} : */ false);
+		}
+
+		// For specifically mobile games, it would be best to avoid mouse input
+		if(Android2JSGame.allowMouseInput) {
+			
+			window.Android2JSGameCanvas.addEventListener("mousedown", function(e) {
+				e.preventDefault(); // Prevent mouse and click events from triggering
+
+				window.Android2JSGameMouseIsDown = true;
+				gamePanel.onTouchEvent.call(gamePanel, new MotionEvent(e));
+			}, /* supportsPassive ? {passive: true} : */ false);
+
+			window.Android2JSGameCanvas.addEventListener("mousemove", function(e) {
+				e.preventDefault(); // Prevent mouse and click events from triggering
+
+				if(window.Android2JSGameMouseIsDown) {
+					gamePanel.onTouchEvent.call(gamePanel, new MotionEvent(e));
+				}
+			}, /* supportsPassive ? {passive: true} : */ false);
+
+			window.Android2JSGameCanvas.addEventListener("mouseup", function(e) {
+				e.preventDefault(); // Prevent mouse and click events from triggering
+
+				window.Android2JSGameMouseIsDown = false;
+				gamePanel.onTouchEvent.call(gamePanel, new MotionEvent(e));
+			}, /* supportsPassive ? {passive: true} : */ false);
+		}
 	}
 }
 
