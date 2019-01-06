@@ -1,3 +1,6 @@
+/**
+ * Some basic style resets.
+ */
 * {
 	border: 0;
 	margin: 0;
@@ -17,6 +20,11 @@
 	user-select: none;
 }
 
+/**
+ * One of these message screens will display if a different orientation
+ * has been requested, but OrientationLock/Fullscreen attempt didn't work.
+ * This is the main reason that we require this CSS file to be included.
+ */
 #turnToLandscape, #turnToPortrait {
 	display: none;
 
@@ -35,34 +43,18 @@
 }
 
 @media (orientation:portrait) {
-	#turnToLandscape {
+	#turnToLandscape.show {
 		display: block;
 	}
 }
 
 @media (orientation:landscape) {
-	#turnToPortrait {
+	#turnToPortrait.show {
 		display: block;
 	}
 }
 
-/* Apply specific fullscreen styles here. */
-div:-wekit-full-screen {
-
-}
-
-div:-moz-full-screen {
-
-}
-
-div:fullscreen {
-
-}
-
-div:full-screen {
-
-}
-
+/* Animate the shrinking fullscreen button. */
 @-webkit-keyframes buttonShrink {
 	0% {
 		width: 100%;
