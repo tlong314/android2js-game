@@ -95,7 +95,7 @@ window.Android2JSGameHeight; // number
 
 window.Android2JSGamePreferredOrientation;
 
-window.Android2JSGameFullScreenTriggers = []; // Buttons, etc., used to toggle fill screen
+window.Android2JSGameFullscreenTriggers = []; // Buttons, etc., used to toggle fill screen
 window.Android2JSGameActivities = []; // Activity class instances
 
 window.Android2JSGameStorageTitle = "";
@@ -138,14 +138,60 @@ window.addEventListener("DOMContentLoaded", function() {
 		Thread.prototype.sleep = Thread.prototype.freezeToSleep;
 	}
 
-	// Gather information about game images, to manage loading before running game
+	// If dev has not defined resources to preload, we'll do a quick sweep to find any defined in the classes
+	if(!Object.keys(window.R.drawable).length &&  !Object.keys(window.R.raw).length) {
+
+		// Assumes all class files are written in lower-spine-case or UpperCamelCase. One class per file.
+		var classNames = Array.apply([], document.querySelectorAll("script")).filter(function(scriptTag){
+				return (scriptTag.src && scriptTag.src.indexOf("android2js-game") === -1);
+			}).map(function(scriptFile) {
+
+				var splitSrc = scriptFile.src.replace(".js", "").split("/");
+				var scriptSrc = splitSrc[splitSrc.length - 1];
+
+				scriptSrc = scriptSrc.charAt(0).toUpperCase() + scriptSrc.substring(1);
+
+				scriptSrc = scriptSrc.replace(/([a-z])\-([a-z])/g, function(match, endLetter, nextWordLetter) {
+					return endLetter + nextWordLetter.toUpperCase();
+				});
+
+				return scriptSrc;
+			});
+
+		classNames.forEach(function(className ) {
+			var drawableResources = eval( className ).toString().match(/R\.drawable\.([a-z_0-9])+/g);
+
+			var rawResources = eval( className ).toString().match(/R\.raw\.([a-z_0-9])+/g);
+
+			// Since global flag was set, these returned values will be null or arrays
+			if(drawableResources) {
+				for(var i = 0; i < drawableResources.length; i++) {
+					var thisFilename = drawableResources[i].split(".").pop();
+					window.R.drawable[thisFilename] = thisFilename;
+				}
+			}
+
+			if(rawResources) { // Currently only supports audio. Video is a little out of our scope anyway...
+				for(var i = 0; i < rawResources.length; i++) {
+					var thisFilename = rawResources[i].split(".").pop();
+					window.R.raw[thisFilename] = thisFilename;
+				}
+			}
+		});
+	}
+
+	// Gather information about game images, audio, and video, to manage loading before running game
 	window.Android2JSGameImageSources = Object.keys(window.R.drawable);
 	window.Android2JSGameImages = new Array(window.Android2JSGameImageSources.length);
-	window.Android2JSGameElementsLoaded = 0;
-	window.Android2JSGameElementsToLoad = window.Android2JSGameImageSources.length;
 
-	// Start loading image resources...
-	Android2JSGamePreloadImages(Android2JSGameImageSources);
+	window.Android2JSGameMediaSources = Object.keys(window.R.raw);
+	window.Android2JSGameMediaFiles = new Array(window.Android2JSGameMediaSources.length);
+
+	window.Android2JSGameElementsLoaded = 0;
+	window.Android2JSGameElementsToLoad = window.Android2JSGameImageSources.length + window.Android2JSGameMediaSources.length;
+
+	// Start loading image and media resources...
+	Android2JSGamePreloadImagesAndMedia(Android2JSGameImageSources, Android2JSGameMediaSources);
 });
 
 /** Manages preloads, calling initiateAndroid2JSGame when resources are loaded. */
@@ -163,6 +209,7 @@ function Android2JSGameLoadElement() {
  * Then calls to being game's MainActivity.
  */
 function initiateAndroid2JSGame() {
+
 	// Store this value to use for saving/storage
 	window.Android2JSGameStorageTitle = document.title.replace(/\s/g, "__");
 
@@ -182,10 +229,10 @@ function initiateAndroid2JSGame() {
 	window.Android2JSGameHeight = getFullscreenDimensions().height;
 
 	window.Android2JSGameTurnPortraitToLS = document.createElement("DIV");
-	window.Android2JSGameTurnPortraitToLS.innerHTML = "Please turn phone to landscape to play";
+	window.Android2JSGameTurnPortraitToLS.innerHTML = "Turn device to landscape (or reduce browser height) to play";
 	window.Android2JSGameTurnPortraitToLS.id = "turnToLandscape";
 	window.Android2JSGameTurnLSToPortrait = document.createElement("DIV");
-	window.Android2JSGameTurnLSToPortrait.innerHTML = "Please turn phone to portrait to play";
+	window.Android2JSGameTurnLSToPortrait.innerHTML = "Turn device to portrait (or reduce browser width) to play";
 	window.Android2JSGameTurnLSToPortrait.id = "turnToPortrait";
 
 	document.body.appendChild( window.Android2JSGameTurnPortraitToLS );
@@ -220,13 +267,14 @@ function initiateAndroid2JSGame() {
 		Android2JSGame.onload();
 	}
 
+	// We set the fullscreen button to toggle fullscreen
+	setFullscreenElement( window.Android2JSGameFSButton );
+
+	// If we do not need to wait for the fullscreen button to be pressed, we'll go ahead and start the game
 	if(!Android2JSGame.startOnEnterFullscreen) {
 
 		// Start game activity processes
 		let mainActivity = new MainActivity();
-		Android2JSGameActivities.push( mainActivity );
-	} else { // If waiting, set up the button to trigger fullscreen
-		setFullscreenElement( window.Android2JSGameFSButton );
 	}
 }
 
@@ -234,16 +282,24 @@ function initiateAndroid2JSGame() {
  * Sets source values for all game images, after applying
  * onload handler.
  */
-function Android2JSGamePreloadImages(Android2JSGameImageSources) {
+function Android2JSGamePreloadImagesAndMedia(Android2JSGameImageSources, Android2JSGameMediaSources) {
 
-	if(Android2JSGameImageSources.length === 0) { // No images
+	if(Android2JSGameImageSources.length === 0 && Android2JSGameMediaSources.length === 0) { // No images or media
 		initiateAndroid2JSGame();
-	}
+	} else {
 
-	for(let i = 0, len = Android2JSGameImageSources.length; i < len; i++) {
-		Android2JSGameImages[i] = new Image();
-		Android2JSGameImages[i].onload = Android2JSGameLoadElement;
-		Android2JSGameImages[i].src = `img/${Android2JSGameImageSources[i]}.png`;
+		// If we have any image sources or media sources, one of these loops will trigger the program to initialize
+		for(let i = 0, len = Android2JSGameImageSources.length; i < len; i++) {
+			Android2JSGameImages[i] = new Image();
+			Android2JSGameImages[i].onload = Android2JSGameLoadElement;
+			Android2JSGameImages[i].src = `img/${Android2JSGameImageSources[i]}.png`;
+		}
+
+		for(let i = 0, len = Android2JSGameMediaSources.length; i < len; i++) {
+			Android2JSGameMediaFiles[i] = new Audio();
+			Android2JSGameMediaFiles[i].onloadeddata = Android2JSGameLoadElement;
+			Android2JSGameMediaFiles[i].src = `audio/${Android2JSGameMediaSources[i]}.wav`;
+		}
 	}
 }
 
@@ -261,7 +317,7 @@ function Android2JSGameAjaxGetImages() {
 		imagesObj = JSON.parse( result );
 		window.R.drawable = imagesObj;
 
-		Android2JSGamePreloadImages(Android2JSGameImages);
+		Android2JSGamePreloadImagesAndMedia(Android2JSGameImages);
 	};
 
 	xhr.open("GET", "/php/getgameresources.php?type=IMAGE", true);
@@ -359,15 +415,6 @@ window.System = {
 
 const loadDateMs = new Date().getTime();
 window.uptimeMillis = 0;
-
-/*
-// This would help calculate SystemClock.uptimMillis, but is probably not
-// worth the extra processing
-function increaseUptimeIfAwake() {
-	window.uptimeMillis += 20;
-	window.setTimeout(increaseUptimeIfAwake, 20);
-}
-*/
 
 window.SystemClock = {
 
@@ -467,9 +514,7 @@ Color.MAGENTA = "rgb(255, 0, 255)";
 Color.TRANSPARENT = "rgba(0, 0, 0, 0)";
 
 /**
- * Use this instead of class Java Color constructors. Or see answers here on
- * how to embed custom colors in your Android res/values/colors.xml file.
- * https://stackoverflow.com/questions/22094125/colors-in-android
+ * Use this instead of class Java Color constructors.
  */
 Color.makeColor = function(r, g, b) {
 	return `rgb(${r}, ${g}, ${b})`;
@@ -1707,6 +1752,7 @@ class BitmapFactory {
 	constructor() {}
 
 	decodeResource(resourcesReference, resourcePath) {
+
 		return new Bitmap(BITMAP_CONSTRUCTOR_KEY,
 			resourcesReference.getDrawablePath(),
 			resourcePath);
@@ -3752,13 +3798,13 @@ window.addEventListener("DOMContentLoaded", function() {
  */
 function setFullscreenElement(elm, orientationChoice, callback) {
 
-	if( Android2JSGameFullScreenTriggers.indexOf(elm) === -1) {
+	if( Android2JSGameFullscreenTriggers.indexOf(elm) === -1) {
 		elm.addEventListener("click", function(e) {
 				e.preventDefault();
 				toggleFullscreen(orientationChoice, callback);
 		});
 
-		Android2JSGameFullScreenTriggers.push(elm);
+		Android2JSGameFullscreenTriggers.push(elm);
 	}
 }
 
@@ -3821,6 +3867,8 @@ function enterFullscreen(orientationChoice) {
 		setPageOrientation(orientationChoice);
 
 		setTimeout(function() {
+			
+			// Activity has not been started, and was requested to wait
 			if(Android2JSGame.startOnEnterFullscreen &&
 				!Android2JSGameActivities.length) {
 
@@ -3834,7 +3882,6 @@ function enterFullscreen(orientationChoice) {
 
 				// Start game activity processes
 				let mainActivity = new MainActivity();
-				Android2JSGameActivities.push( mainActivity );
 			}
 		}, 500); // Give a little time to change orientation
 	}, 500); // Give a little time to enter fullscreen
@@ -3887,12 +3934,16 @@ function setPageOrientation(orientationChoice) {
 				window.Android2JSGameTurnPortraitToLS
 			);
 		}
+
+		window.Android2JSGameTurnLSToPortrait.classList.add("show");
 	} else { // "landscape"
 		if(window.Android2JSGameTurnLSToPortrait.parentNode) {
 			window.Android2JSGameTurnLSToPortrait.parentNode.removeChild(
 				window.Android2JSGameTurnLSToPortrait
 			);
 		}
+		
+		window.Android2JSGameTurnPortraitToLS.classList.add("show");
 	}
 
 	try {
@@ -4141,7 +4192,7 @@ class MediaPlayer {
 
 	prepareAsync() {
 		let mediaPlayer = this;
-		this.media.onload = function() {
+		this.media.onloadeddata = function() {
 			mediaPlayer.onPrepared();
 		};
 
@@ -4329,7 +4380,7 @@ class SoundPool {
 		let mediaPlayer = new MediaPlayer();
 		let self = this;
 
-		mediaPlayer.media.onload = function() {
+		mediaPlayer.media.onloadeddata = function() {
 			self.onLoadCompleteListener.onLoadComplete(self, "", 0);
 		};
 
