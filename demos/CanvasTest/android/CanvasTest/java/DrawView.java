@@ -1,26 +1,24 @@
-package com.replacewithyourdomainname.canvastest;
+package com.hfad.canvastest;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.content.Context;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.view.View;
-import android.content.Context;
 
 public class DrawView extends View {
 
-
-	public DrawView(Context  context) {
+	public DrawView(Context context) {
         super(context);
     }
 
-    @Override 
-	public  void  onDraw(Canvas  canvas) {
+    @Override
+	public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
         Paint paint = new Paint();
-        paint.setAntiAlias(true);
 
 		// Fill the screen with white
         canvas.drawColor(Color.WHITE);
@@ -37,6 +35,6 @@ public class DrawView extends View {
  
 		// Draw a filled semicircle of a custom color
 		paint.setARGB(255, 100, 200, 200);
-        canvas.drawArc(new RectF(200, 200, 300, 300), 0, 180, false, paint);
+        canvas.drawArc(new RectF(160, 120, 260, 220), 0, 180, false, paint);
     }
 }
