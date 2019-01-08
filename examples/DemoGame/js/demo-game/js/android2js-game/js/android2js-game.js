@@ -904,7 +904,16 @@ class Activity extends Context {
 	constructor() {
 		super();
 
-		let savedInstanceState = JSON.parse(localStorage.getItem("Android2JSGame_" + window.Android2JSGameStorageTitle) || "null");
+		let localStorageResponse = null;
+
+		try {
+			localStorageResponse = localStorage.getItem("Android2JSGame_" + window.Android2JSGameStorageTitle);
+		} catch(e) {
+			console.error("Cannot read saved instance state due to security restrictions on localStorage.");
+			localStorageResponse = null;
+		}
+
+		let savedInstanceState = JSON.parse(localStorageResponse || "null");
 
 		this.contentView = new View();
 		this.onCreate(savedInstanceState);
@@ -917,8 +926,18 @@ class Activity extends Context {
 			if(document.visibilityState === "hidden") {
 				self.onSaveInstanceState(null);
 			} else {
+				
+				let sessionStorageResponse = null;
+				
+				try {
+					sessionStorageResponse = sessionStorage.getItem("Android2JSGame_" + window.Android2JSGameStorageTitle)
+				} catch(e) {
+					console.error("Cannot set saved instance state due to security restrictions on sessionStorage.");
+					sessionStorageResponse = null;
+				}
+
 				self.onRestoreInstanceState(
-					JSON.parse( sessionStorage.getItem("Android2JSGame_" + window.Android2JSGameStorageTitle) || "null" )
+					JSON.parse(sessionStorageResponse  || "null" )
 				);
 			}
 		}, false);
@@ -966,13 +985,25 @@ class Activity extends Context {
 	onStop() {}
 	onDestroy() {}
 
-	// Consider using sessionStorage to emulate this
 	onSaveInstanceState(bundle) {
-		sessionStorage.setItem("Android2JSGame_" + window.Android2JSGameStorageTitle, JSON.stringify(bundle) );
+		try {
+			sessionStorage.setItem("Android2JSGame_" + window.Android2JSGameStorageTitle, JSON.stringify(bundle) );
+		} catch(e) {
+			console.error("Cannot save instance state due to security restrictions on sessionStorage.");
+		}
 	}
 
 	onRestoreInstanceState(bundle) {
-		bundle = JSON.parse( sessionStorage.getItem("Android2JSGame_" + window.Android2JSGameStorageTitle) || "null");
+		let sessionStorageResponse = null;
+
+		try {
+			sessionStorageResponse = sessionStorage.getItem("Android2JSGame_" + window.Android2JSGameStorageTitle);
+		} catch(e) {
+			console.error("Cannot retrieve saved instance state due to security restrictions on sessionStorage.");
+			sessionStorageResponse = null;
+		}
+
+		bundle = JSON.parse(sessionStorageResponse  || "null");
 	}
 
 	// newTitle can be an int identifier, or a CharSequence
@@ -1977,99 +2008,57 @@ Bitmap.createBitmap = function() {
 	}
 };
 
-// Use this when you want to scale a bitmap image (and perhaps crop it)
-Bitmap.createScaledBitmap = function() {
+// Use this when you want to scale an existing Bitmap image
+Bitmap.createScaledBitmap = function(src, destWidth, destHeight, filter) {
+
+	if(destWidth <= 0 || destHeight <= 0) {
+		throw new Error("IllegalArgumentException: Bitmap.createScaledBitmap" +
+			"arguments for width and height must be positive.");
+	}
 
 	/**
-	 * In this simple implementation, we only consider a few overloads
+	 * Use destWidth and destHeight arguments to set the new bitmap image as a resized
+	 * version of the source bitmap's image
 	 */
-	if(arguments.length === 1 && arguments[0] instanceof Bitmap) { // (Bitmap bitmap)
-		return arguments[0];
-	} else if(arguments.length === 7) { // (Bitmap bitmap, int x, int y, int width, int height, Matrix matrix|null, someBoolean)
+	var bitmap = new Bitmap(BITMAP_CONSTRUCTOR_KEY, arguments[0]);
+	bitmap.setWidth(destWidth);
+	bitmap.setHeight(destHeight);
 
-		if(arguments[3] <= 0 || arguments[4] <= 0) {
-			throw new Error("IllegalArgumentException: Bitmap.createScaledBitmap" +
-				"arguments for width and height must be positive.");
-		}
+	try {
+		let image = new Image();
+		image.setAttribute("crossOrigin", "Anonymous");
 
-		/**
-		 * Use x and y arguments to set the new bitmap image as a cropped
-		 * version of the source bitmap's image
-		 */
-		var bitmap = new Bitmap(BITMAP_CONSTRUCTOR_KEY, arguments[0]);
-		bitmap.setWidth(arguments[3]);
-		bitmap.setHeight(arguments[4]);
+		let scaledWidth = destWidth;
+		let scaledHeight = destHeight;
 
-		if(arguments[5] !== null && !arguments[5].isIdentity()) {
+		let canvas = document.createElement("CANVAS");
 
-			try {
-				let image = new Image();
-				image.setAttribute("crossOrigin", "Anonymous");
+		canvas.width = scaledWidth;
+		canvas.style.width = scaledWidth + "px";
+		canvas.height = scaledHeight;
+		canvas.style.height = scaledHeight + "px";
 
-				let matrix = arguments[5];
+		image.onload = function() {
+			document.body.appendChild(canvas);
 
-				let matrixScaleX = matrix.values[Matrix.MSCALE_X];
-				let matrixScaleY = matrix.values[Matrix.MSCALE_Y];
+			let ctx = canvas.getContext("2d");
+			ctx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
 
-				let signedScaledWidth = arguments[3] * matrixScaleX;
-				let signedScaledHeight = arguments[4] * matrixScaleY;
+			// Redefine the bitmap's image as the newly transformed image
+			let dataURL = canvas.toDataURL();
+			bitmap.image.src = dataURL;
 
-				let scaledWidth = Math.abs(arguments[3] * matrixScaleX);
-				let scaledHeight = Math.abs(arguments[4] * matrixScaleY);
+			document.body.removeChild(canvas);
+		};
 
-				let translatedX = 0;
-				let translatedY = 0;
+		image.src = bitmap.image.src;
 
-				let canvas = document.createElement("CANVAS");
-
-				canvas.width = scaledWidth;
-				canvas.style.width = scaledWidth + "px";
-				canvas.height = scaledHeight;
-				canvas.style.height = scaledHeight + "px";
-
-				image.onload = function() {
-					document.body.appendChild(canvas);
-
-					let ctx = canvas.getContext("2d");
-					ctx.setTransform(
-						matrix.values[Matrix.MSCALE_X],
-						matrix.values[Matrix.MSKEW_X],
-						matrix.values[Matrix.MSKEW_Y],
-						matrix.values[Matrix.MSCALE_Y],
-						matrix.values[Matrix.MTRANS_X],
-						matrix.values[Matrix.MTRANS_Y]
-					);
-
-					ctx.drawImage(image, translatedX, translatedY, signedScaledWidth, signedScaledHeight);
-
-					// Redefine the bitmap's image as the newly transformed image
-					let dataURL = canvas.toDataURL();
-					bitmap.image.src = dataURL;
-
-					document.body.removeChild(canvas);
-				};
-
-				image.src = bitmap.image.src;
-			} catch(domException) {
-				console.log("Testing from a local directory may cause CORS errors.\n" + 
-					"Link to a web server to apply matrices in Bitmap.createScaledBitmap.");
-			}
-		}
-
-		return bitmap;
-
-	} else { // (int width, int height, Bitmap.Config bitmapConfiguration)
-
-		if(arguments[0] <= 0 || arguments[1] <= 0) {
-			throw new Error("IllegalArgumentException: Bitmap.createScaledBitmap" +
-				"arguments for width and height must be positive.");
-		}
-
-		var bitmap = new Bitmap(BITMAP_CONSTRUCTOR_KEY, null, null);
-		bitmap.setWidth(arguments[0]);
-		bitmap.setHeight(arguments[1]);
-		return bitmap;
+	} catch(e) {
+		console.log("Testing from a local directory may cause CORS errors.\n" + 
+			"Link to a web server to use images in Bitmap.createScaledBitmap.");
 	}
+
+	return bitmap;
 };
 
 // Consider reworking to use DOMMatrix
@@ -3341,7 +3330,17 @@ class Canvas {
 		Android2JSGameApplyShadow(paint);
 		window.Android2JSGameCtx.globalAlpha = paint.getAlpha() / 255;
 		window.Android2JSGameCtx.globalCompositeOperation = paint.getXfermode();
-		window.Android2JSGameCtx.drawImage(bitmap.canvas, boundingRect.left, boundingRect.top, boundingRect.width(), boundingRect.height());
+
+		try {
+			window.Android2JSGameCtx.drawImage(bitmap.canvas, boundingRect.left, boundingRect.top, boundingRect.width(), boundingRect.height());
+		} catch(e) {
+			// image resource may have been blocked due to CORS security errors
+			let oldStrokeStyle = window.Android2JSGameCtx.strokeStyle;
+			window.Android2JSGameCtx.strokeStyle = "red";
+			window.Android2JSGameCtx.strokeRect(boundingRect.left, boundingRect.top, boundingRect.width(), boundingRect.height());
+			window.Android2JSGameCtx.strokeStyle = oldStrokeStyle;
+		}
+
 		window.Android2JSGameCtx.globalAlpha = 1.0;
 	}
 
@@ -4014,7 +4013,14 @@ class SharedPreferences {
 		this.editor = SharedPreferences.Editor;
 
 		// Pull in stored object as a JSON string
-		let loadedObject = localStorage.getItem(savableObjectName);
+		let loadedObject = null;
+		
+		try {
+			loadedObject = localStorage.getItem(savableObjectName);
+		} catch(e) {
+			console.error("Cannot retrieve saved SharedPreferences due to security restrictions on localStorage.");
+			loadedObject = null;
+		}
 
 		// Parse the stored JSON string if found
 		if(loadedObject !== null && loadedObject !== undefined) {
@@ -4030,13 +4036,14 @@ class SharedPreferences {
 	
 	commit() {
 		let objectToSave = JSON.stringify( this.savableObject );
-		let successfulSave;
+		let successfulSave = false;
 
 		try {
-			localStorage(this.savableObjectName , objectToSave);
-			successfulSave = false;
-		} catch(e) {
+			localStorage.setItem(this.savableObjectName , objectToSave);
 			successfulSave = true;
+		} catch(e) {
+			console.error(e);
+			successfulSave = false;
 		}
 
 		return successfulSave;
@@ -4045,7 +4052,12 @@ class SharedPreferences {
 	apply() {
 		requestAnimationFrame(function() {
 			let objectToSave = JSON.stringify( this.savableObject );
-			localStorage(this.savableObjectName , objectToSave);
+
+			try {
+				localStorage.setItem(this.savableObjectName , objectToSave);
+			} catch(e) {
+				console.error("Cannot perform apply() on SharedPreferences due to security restrictions on localStorage.");
+			}
 		});
 	}
 
@@ -4185,9 +4197,13 @@ class MediaPlayer {
 
 	/** This method needs to be inside a try/catch clause. */
 	prepare() {
-		this.media.src = this.src;
-		this.media.load();
-		this.onPrepared();
+		try {
+			this.media.src = this.src;
+			this.media.load();
+			this.onPrepared();
+		} catch(e) {
+			console.error("Could not load media from src " + this.src);
+		}
 	}
 
 	prepareAsync() {
