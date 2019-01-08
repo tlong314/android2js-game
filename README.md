@@ -46,13 +46,13 @@ When you have a completed application, that runs without errors, save your proje
 
 ## Options
 
-In your HTML file after the inclusion of the android2js-game.js script, you can set some options globally. The game code will start after the page loads (which will occur after these globals are set). Since processes are set to begin as soon as the page loads, there is actually no need to initialize anything yourself; thus android2js-game.js does not have a constructor. Assign these values directly (see examples).
+In your HTML file after the inclusion of the android2js-game.js script, you can set some options globally. android2js-game does not have a constructor (you do not need to write anything like `let myVar = new Android2JSGame(options);` ). Instead assign these options directly (see examples).
 
 Android2JSGame.startOnEnterFullscreen - boolean. Determines if the game should not start until user triggers the page to enter fullscreen. This is preferred, as user action is generally required for some other processes to start (like playing audio). Default is `true`.
 
 Android2JSGame.onload - function (or `null`). A basic callback for when all resources have loaded. Default is `null`.
 
-Android2JSGame.allowTouchInput - boolean. Whether to detect screen touch events. Should only be set to false if your web-based game is aimed at mouse-driven devices. Default is `true`.
+Android2JSGame.allowTouchInput - boolean. Whether to detect screen touch events. Should only be set to `false` if your web-based game is aimed at mouse-driven devices. Default is `true`.
 
 Android2JSGame.allowMouseInput - boolean. Whether to detect screen mouse events (which will be interpreted like touch events). Unnecessary for mobile web, but may be set to `true` if game will be played on mouse-driven devices. Default is `false`.
 
