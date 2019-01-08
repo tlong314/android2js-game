@@ -4,7 +4,7 @@ A JavaScript framework for JavaScript game developers to learn to make Android g
 
 This framework includes many objects based on Android Java classes, allowing developers to write JavaScript code as if they were writing native Android games. Conversely, it allows Android developers to quickly convert their native Android games to client-side web games.
 
-This project is primary for learning. It provides objects/classes for JavaScript developers to more easily become comfortable with the Android Java environment.
+This project is primarily for learning. It provides objects/classes for JavaScript developers to more easily become comfortable with the Android Java environment.
 
 ## Usage
 
@@ -16,17 +16,17 @@ Add the android2js-game directory to your project's `js` folder (which should re
 <script src="js/android2js-game/js/android2js-game.js"></script>
 ```
 
-Write your JavaScript code as ECMAScript 5 classes, keep separate classes in separate .js files. Include a class named `MainActivity` with a method called `onCreate` as your initializing method.
+Write your JavaScript code as ECMAScript 5 classes, keep separate classes in separate .js files. Include a class named `MainActivity` containing a method called `onCreate` as your initializing method.
 
 ```javascript
-class MainAcivity extends Activity
+class MainActivity extends Activity
 ```
 
 Try to follow the rules suggested on this page:
 
 https://timlongcreative.com/web-apps/android2jsgame-converter/
 
-In particular, your MainActivity.js file should look like this:
+In particular, your main-activity.js file should look like this:
 
 ```javascript
 class MainActivity extends Activity {
@@ -42,7 +42,7 @@ class MainActivity extends Activity {
 }
 ```
 
-When you have a completed application, that runs without errors, save your project in a zip file and use the page above to convert the code. This conversion is not 100% accurate, so you may have to make further adjustments to the code afterwards. Test run the code (e.g., in AndroidStudio) and debug the errors that remain.
+When you have a completed application, that runs without errors, save your project in a zip file and use the link above to convert the code. This conversion is not 100% accurate, so you may have to make further adjustments to the code afterwards; test run the code (e.g., in AndroidStudio) and debug the errors that remain.
 
 ## Options
 
@@ -60,4 +60,4 @@ Android2JSGame.interruptToSleep - boolean. Whether to try and mimick Java Thread
 
 ## License
 
-This library is available free for use under the MIT license. The linked code converter above is available free for use under the MIT license.
+android2js-game is available free for use under the MIT license.
