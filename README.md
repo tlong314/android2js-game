@@ -2,7 +2,7 @@
 
 A JavaScript framework for JavaScript game developers to learn to make Android games and vice versa.
 
-This library includes many objects based on Android Java classes, allowing developers to write JavaScript code as if they were writing native Android games. Conversely, it allows Android developers to quickly convert their native Android games to client-side web games.
+This framework includes many objects based on Android Java classes, allowing developers to write JavaScript code as if they were writing native Android games. Conversely, it allows Android developers to quickly convert their native Android games to client-side web games.
 
 This project is primary for learning. It provides objects/classes for JavaScript developers to more easily become comfortable with the Android Java environment.
 
