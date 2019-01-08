@@ -4173,7 +4173,7 @@ class MediaPlayer {
 	constructor() {
 
 		this.audioStreamType;
-		this.media = new Audio();
+		this.media = new Audio(); // @todo Allow video...
 		this.src = "";
 
 		this.looping = false;
@@ -4287,18 +4287,17 @@ class MediaPlayer {
  * For this library we only support the MediaPlayer.create method with
  * arguments as Context and resource ID. Attempting to overcome
  * XSS errors by streaming resources from different URLs is outside
- * the scope of what this library is used for.
- *
- * Note: remember to call mediaPlayer.prepare(); after creation.
+ * the scope of what this framework is meant for.
  *
  * mediaPlayer = MediaPlayer.create(Constants.CURRENT_CONTEXT, "my_song");
- * mediaPlayer.prepare();
  * mediaPlayer.start();
  */
 MediaPlayer.create = function(context, resourceId) {
-	let audioFile = new Audio("audio/" + resourceId + ".wav"); // Currently only support audio (.wav), not video
+
+	// Currently only support audio (.wav), not video
 	let mediaPlayer = new MediaPlayer();
-	mediaPlayer.src = audioFile.src;
+	mediaPlayer.src = "audio/" + resourceId + ".wav";
+	mediaPlayer.prepare();
 	return mediaPlayer;
 };
 
