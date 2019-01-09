@@ -117,11 +117,11 @@ window.addEventListener("DOMContentLoaded", function() {
 	}
 
 	// If dev has not defined resources to preload, we'll do a quick sweep to find any defined in the classes
-	if(!Object.keys(R.drawable).length &&  !Object.keys(R.raw).length) {
+	if(!Object.keys(R.drawable).length && !Object.keys(R.raw).length) {
 
 		// Assumes all class files are written in lower-spine-case or UpperCamelCase. One class per file.
 		var classNames = Array.apply([], document.querySelectorAll("script")).filter(function(scriptTag){
-				return (scriptTag.src && scriptTag.src.indexOf("android2js-game") === -1);
+				return (scriptTag.src && scriptTag.src.indexOf("android2js-game/js") === -1);
 			}).map(function(scriptFile) {
 
 				var splitSrc = scriptFile.src.replace(".js", "").split("/");
