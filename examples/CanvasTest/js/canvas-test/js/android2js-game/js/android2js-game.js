@@ -31,18 +31,6 @@
  * words), such as my_img.png, some_song1.wav, etc.
  */
 
-/**
- * @todo Update BitmapFactory.decodeResource to create an Image element, based
- * on the imported image, but resized so that the new dimensions equal the image
- * dimensions times the screen density. This is how Android does it: for instance, if
- * you have a 450px x 300px image saved in drawable, and import it with
- * decodeResource on a screen with 2.0 screen density (found via
- * Activity.getResources().getMetrics().density)
- * then it will actually create an image fill with dimensions 900px x 300px.
- * We may also want to redefine createScaledBitmap, as this should
- * probably take screen density into account for its internal calculations...
- */
-
 "use strict";
 
 // These static methods are included in the Java Android Math class
@@ -60,6 +48,13 @@ Math.signum = Math.sign;
 class Integer {}
 Integer.MAX_VALUE = Number.MAX_SAFE_INTEGER;
 Integer.MIN_VALUE = Number.MIN_SAFE_INTEGER;
+
+// A class to static references to file resources
+class R {}
+
+R.drawable ={};
+R.layout = {};
+R.raw = {};
 
 // Standardize some method names
 window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || mozRequestAnimationFrame;
@@ -113,25 +108,8 @@ window.Android2JSGameSleepWaitDiv.style.display = "none"; // We need to hide it 
 // Check for Safari or Opera to attempt alternatives for various blocked JS features (fullscreen, onresize, orientation, media)
 window.badApple = ~navigator.vendor.toLowerCase().indexOf("apple") && !!navigator.userAgent.match(/(safari)|(opera)/i);
 
-// Wait for DOM to load, so that dev can define their own window.R resources
+// Wait for DOM to load, so that dev can define their own R class resources
 window.addEventListener("DOMContentLoaded", function() {
-	if(typeof window.R === "undefined") {
-		window.R = {};
-	}
-
-	// Fill these objects with media resource names (key and value). See examples.
-	if(typeof window.R.drawable === "undefined") {
-		window.R.drawable = {};
-	}
-
-	if(typeof window.R.layout === "undefined") {
-		window.R.layout = {};
-	}
-
-	// "raw" directory is used for storing audio and video resources.
-	if(typeof window.R.raw === "undefined") {
-		window.R.raw = {};
-	}
 
 	// Decide if we should interrupt all current processes during Thread sleep() method
 	if(Android2JSGame.interruptToSleep) {
@@ -139,7 +117,7 @@ window.addEventListener("DOMContentLoaded", function() {
 	}
 
 	// If dev has not defined resources to preload, we'll do a quick sweep to find any defined in the classes
-	if(!Object.keys(window.R.drawable).length &&  !Object.keys(window.R.raw).length) {
+	if(!Object.keys(R.drawable).length &&  !Object.keys(R.raw).length) {
 
 		// Assumes all class files are written in lower-spine-case or UpperCamelCase. One class per file.
 		var classNames = Array.apply([], document.querySelectorAll("script")).filter(function(scriptTag){
@@ -167,24 +145,24 @@ window.addEventListener("DOMContentLoaded", function() {
 			if(drawableResources) {
 				for(var i = 0; i < drawableResources.length; i++) {
 					var thisFilename = drawableResources[i].split(".").pop();
-					window.R.drawable[thisFilename] = thisFilename;
+					R.drawable[thisFilename] = thisFilename;
 				}
 			}
 
 			if(rawResources) { // Currently only supports audio. Video is a little out of our scope anyway...
 				for(var i = 0; i < rawResources.length; i++) {
 					var thisFilename = rawResources[i].split(".").pop();
-					window.R.raw[thisFilename] = thisFilename;
+					R.raw[thisFilename] = thisFilename;
 				}
 			}
 		});
 	}
 
 	// Gather information about game images, audio, and video, to manage loading before running game
-	window.Android2JSGameImageSources = Object.keys(window.R.drawable);
+	window.Android2JSGameImageSources = Object.keys(R.drawable);
 	window.Android2JSGameImages = new Array(window.Android2JSGameImageSources.length);
 
-	window.Android2JSGameMediaSources = Object.keys(window.R.raw);
+	window.Android2JSGameMediaSources = Object.keys(R.raw);
 	window.Android2JSGameMediaFiles = new Array(window.Android2JSGameMediaSources.length);
 
 	window.Android2JSGameElementsLoaded = 0;
@@ -315,7 +293,7 @@ function Android2JSGameAjaxGetImages() {
 		let result = this.resultText;
 
 		imagesObj = JSON.parse( result );
-		window.R.drawable = imagesObj;
+		R.drawable = imagesObj;
 
 		Android2JSGamePreloadImagesAndMedia(Android2JSGameImages);
 	};
@@ -795,7 +773,7 @@ class Context {
 	}
 
 	getResources() {
-		return window.R;
+		return R;
 	}
 
 	getSystemService(service) {
@@ -1778,7 +1756,7 @@ RectF.intersects = function(rect1, rect2) {
 	return false;
 };
 
-/** BitmapFactory class, used to . */
+/** BitmapFactory class, used to create Bitmaps from files. */
 class BitmapFactory {
 	constructor() {}
 
@@ -1825,6 +1803,8 @@ class Bitmap {
 
 		let storedBitmap = this;
 		this.image.onload = function() {
+
+			// Bitmaps are more similar to <canvas> elements than <img> so our end goal will be treating these as canvases
 			let dmDensity = new DisplayMetrics().density;
 			storedBitmap.width = this.width * dmDensity;
 			storedBitmap.height = this.height * dmDensity;
@@ -1892,6 +1872,13 @@ class Bitmap {
 
 	setWidth(width) {
 		this.image.width = width;
+
+		let dmDensity = new DisplayMetrics().density;
+		this.width = this.image.width * dmDensity;
+
+		this.canvas.width = this.width * dmDensity;
+		this.canvas.style.width = (this.width * dmDensity) + "px";
+		this.ctx.drawImage(this.image, 0, 0);
 	}
 
 	getHeight() {
@@ -1900,6 +1887,13 @@ class Bitmap {
 
 	setHeight(height) {
 		this.image.height = height;
+
+		let dmDensity = new DisplayMetrics().density;
+		this.height = this.image.height * dmDensity;
+
+		this.canvas.width = this.width * dmDensity;
+		this.canvas.style.width = (this.width * dmDensity) + "px";
+		this.ctx.drawImage(this.image, 0, 0);
 	}
 
 	setConfig(newConfig) {
@@ -1985,10 +1979,15 @@ Bitmap.createBitmap = function() {
 					document.body.removeChild(canvas);
 				};
 
+				image.onerror = function() {
+					console.log("Testing from a local directory may cause CORS errors.\n" + 
+					"Link to a web server to use images in Bitmap.createBitmap.");
+				};
+
 				image.src = bitmap.image.src;
 			} catch(domException) {
 				console.log("Testing from a local directory may cause CORS errors.\n" + 
-					"Link to a web server to apply matrices in Bitmap.createBitmap.");
+					"Link to a web server to use images in Bitmap.createBitmap.");
 			}
 		}
 
@@ -2044,11 +2043,15 @@ Bitmap.createScaledBitmap = function(src, destWidth, destHeight, filter) {
 			let ctx = canvas.getContext("2d");
 			ctx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
 
-			// Redefine the bitmap's image as the newly transformed image
+			// Redefine the bitmap's image as the newly imported image
 			let dataURL = canvas.toDataURL();
 			bitmap.image.src = dataURL;
-
 			document.body.removeChild(canvas);
+		};
+
+		image.onerror = function() { 
+			console.log("Testing from a local directory may cause CORS errors.\n" + 
+			"Link to a web server to use images in Bitmap.createScaledBitmap.");
 		};
 
 		image.src = bitmap.image.src;
@@ -3332,13 +3335,16 @@ class Canvas {
 		window.Android2JSGameCtx.globalCompositeOperation = paint.getXfermode();
 
 		try {
-			window.Android2JSGameCtx.drawImage(bitmap.canvas, boundingRect.left, boundingRect.top, boundingRect.width(), boundingRect.height());
+			window.Android2JSGameCtx.drawImage(bitmap.image, boundingRect.left, boundingRect.top, boundingRect.width(), boundingRect.height());
 		} catch(e) {
 			// image resource may have been blocked due to CORS security errors
 			let oldStrokeStyle = window.Android2JSGameCtx.strokeStyle;
+			let oldLineWidth = window.Android2JSGameCtx.lineWidth;
 			window.Android2JSGameCtx.strokeStyle = "red";
+			window.Android2JSGameCtx.lineWidth = 2;
 			window.Android2JSGameCtx.strokeRect(boundingRect.left, boundingRect.top, boundingRect.width(), boundingRect.height());
 			window.Android2JSGameCtx.strokeStyle = oldStrokeStyle;
+			window.Android2JSGameCtx.lineWidth = oldLineWidth;
 		}
 
 		window.Android2JSGameCtx.globalAlpha = 1.0;
@@ -4305,8 +4311,11 @@ class MediaPlayer {
  * XSS errors by streaming resources from different URLs is outside
  * the scope of what this framework is meant for.
  *
+ * Example:
+ *
  * mediaPlayer = MediaPlayer.create(Constants.CURRENT_CONTEXT, "my_song");
  * mediaPlayer.start();
+ *
  */
 MediaPlayer.create = function(context, resourceId) {
 
