@@ -93,6 +93,24 @@ window.Android2JSGamePreferredOrientation;
 window.Android2JSGameFullscreenTriggers = []; // Buttons, etc., used to toggle fill screen
 window.Android2JSGameActivities = []; // Activity class instances
 
+window.Android2JSGameImageSources = [];
+window.Android2JSGameImages = [];
+window.Android2JSGameMediaSources = [];
+window.Android2JSGameMediaFiles = [];
+window.Android2JSGameElementsLoaded = 0;
+window.Android2JSGameElementsToLoad = 0;
+
+/**
+ * Fonts will be stored as objects of this form:
+ *
+ *  "MyFont": {
+ *	  name: "MyFont",
+ *    path: "fonts/my-font.tff"
+ *  }
+ *
+ */
+window.Android2JSGameFonts = {};
+
 window.Android2JSGameStorageTitle = "";
 window.Android2JSGameStoredBodyMargin = "";
 
@@ -1402,7 +1420,7 @@ class Rect {
 
 		otherRect = new Rect(left, top, right, bottom);
 
-		if(this.intersects(otherRect)) {
+		if(Rect.intersects(this, otherRect)) {
 			intersecting = true;
 
 			let intLeft = Math.max(this.left, otherRect.left);
@@ -1427,10 +1445,9 @@ class Rect {
 			let rect = new Rect(left, topY, right, bottom);
 
 			return Rect.intersects(this, rect);
-		} else if(arguments.length === 1) {
-			return Rect.intersects(this, arguments[0]);
 		} else {
-			throw new Error("Invalid number of arguments for (Rect).intersects");
+			throw new Error("Invalid number of arguments for (Rect).intersects. To check if two Rects intersect,\n"
+				+ "use static method Rect.intersects(rect1, rect2)");
 		}
 	}
 
@@ -1635,7 +1652,7 @@ class RectF {
 
 		otherRectF = new RectF(left, top, right, bottom);
 
-		if(this.intersects(otherRectF)) {
+		if(RectF.intersects(this, otherRectF)) {
 			intersecting = true;
 
 			let intLeft = Math.max(this.left, otherRectF.left);
@@ -1657,13 +1674,12 @@ class RectF {
 			let right = arguments[2];
 			let bottom = arguments[3];
 
-			let rect = new RectF(left, topY, right, bottom);
+			let rectF = new RectF(left, topY, right, bottom);
 
-			return RectF.intersects(this, rect);
-		} else if(arguments.length === 1) {
-			return RectF.intersects(this, arguments[0]);
-		} else {
-			throw new Error("Invalid number of arguments for (RectF).intersects");
+			return RectF.intersects(this, rectF);
+		}  else {
+			throw new Error("Invalid number of arguments for (RectF).intersects. To check if two RectFs intersect,\n"
+				+ "use static method RectF.intersects(rectf1, rectf2)");
 		}
 	}
 
@@ -2810,7 +2826,14 @@ try {
 class Typeface {
 	constructor() {
 		this.italic = false;
+		this.bold = false;
 		this.fontFamily = "Arial";
+		this.fontStyle = "";
+		this.fontName = "Arial";
+	}
+
+	isBold() {
+		return this.bold;
 	}
 
 	isItalic() {
@@ -2833,14 +2856,11 @@ Typeface.SERIF.fontFamily = "serif";
 Typeface.SANS_SERIF = new Typeface();
 Typeface.SANS_SERIF.fontFamily = "sans-serif";
 
-// family is Typeface or String
-// Typeface.create = function(family, fontStyle, italic) {
-//	var fontName = family,
-//		isItalic = !!italic;
-
 Typeface.create = function(family, typefaceStyle) {
 	var fontStyle = "",
 		fontFamily = "Arial";
+
+	let newTypeface = new Typeface();
 
 	switch(typefaceStyle) {
 		case Typeface.NORMAL:
@@ -2848,12 +2868,16 @@ Typeface.create = function(family, typefaceStyle) {
 			break;
 		case Typeface.ITALIC:
 			fontStyle = "italic";
+			newTypeface.italic = true;
 			break;
 		case Typeface.BOLD:
 			fontStyle = "bold";
+			newTypeface.bold = true;
 			break;
 		case Typeface.BOLD_ITALIC:
 			fontStyle = "bold italic";
+			newTypeface.bold = true;
+			newTypeface.italic = true;
 			break;
 		default:
 			fontStyle = "";
@@ -2866,9 +2890,91 @@ Typeface.create = function(family, typefaceStyle) {
 		fontFamily = family.fontFamily;
 	}
 
-	let newTypeface = new Typeface();
 	newTypeface.fontName = fontFamily;
 	newTypeface.fontStyle = fontStyle;
+
+	return newTypeface;
+};
+
+Typeface.createFromAsset = function(assetManager, fontUrl) {
+	var fontStyle = "",
+		fontFamily = "",
+		fontPath = fontUrl.replace("fonts/", "").split(".")[0];
+
+	if(!(assetManager instanceof AssetManager)) {
+		throw new Error("Typeface.createFromAssets requires first argument to be an instance of AssetManager.");
+	}
+
+	if(!Android2JSGameFonts.hasOwnProperty(fontPath)) {
+		var sheet = document.createElement("STYLE");
+		document.head.appendChild(sheet);
+
+		let newFontName = "a2jsgame_custom_font" + Object.keys(window.Android2JSGameFonts).length;
+
+		fontFamily = newFontName;
+
+		sheet.innerText =	`
+			@font-face {
+				font-family: ${fontFamily};
+				src: url('${fontUrl}') format('truetype');
+				font-weight: normal;
+				font-style: normal;
+			}
+
+			div:-wekit-full-screen {
+				@font-face {
+					font-family: ${fontFamily};
+					src: url('${fontUrl}') format('truetype');
+					font-weight: normal;
+					font-style: normal;
+				}
+			}
+
+			div:-moz-full-screen {
+				@font-face {
+					font-family: ${fontFamily};
+					src: url('${fontUrl}') format('truetype');
+					font-weight: normal;
+					font-style: normal;
+				}
+			}
+
+			div:fullscreen {
+				@font-face {
+					font-family: ${fontFamily};
+					src: url('${fontUrl}') format('truetype');
+					font-weight: normal;
+					font-style: normal;
+				}
+			}
+
+			div:full-screen {
+				@font-face {
+					font-family: ${fontFamily};
+					src: url('${fontUrl}') format('truetype');
+					font-weight: normal;
+					font-style: normal;
+				}
+			}
+			`;
+
+		window.Android2JSGameFonts[fontPath] = {
+			name: fontFamily,
+			path: fontUrl
+		};
+	} else { // This custom font has already been created and recorded
+		fontFamily = window.Android2JSGameFonts[fontPath].name;
+	}
+
+	let newTypeface = new Typeface();
+
+	if(fontFamily) {
+		newTypeface.fontName = fontFamily;
+	}
+
+	if(fontStyle) {
+		newTypeface.fontStyle = fontStyle;
+	}
 
 	return newTypeface;
 };
@@ -4263,10 +4369,10 @@ class MediaPlayer {
 
 	/**
 	 * Upon the writing of this library, HTML5 Audio does not support left/right
-	 * volume difference, so we set both to the first parameter.
+	 * volume difference, so we set both to the mean average of the two.
 	 */
 	setVolume(leftVolume, rightVolume) {
-		this.media.volume = leftVolume;
+		this.media.volume = (leftVolume + rightVolume) / 2;
 	}
 
 	// For games, type should generally be AudioManager.STREAM_MUSIC
@@ -4392,11 +4498,9 @@ class SoundPool {
 		this.clips = new ArrayList();
 
 		this.maxStreams = maxStreams; // max # of these clips allowed to play at once
-		
-		this.onLoadCompleteListener = function() {
-			return {
-				onLoadComplete: function() {/* noop */}
-			};
+
+		this.onLoadCompleteListener = {
+			onLoadComplete: function(soundPool, sampleId, status) {/* noop */}
 		};
 	}
 
@@ -4408,7 +4512,7 @@ class SoundPool {
 			self.onLoadCompleteListener.onLoadComplete(self, "", 0);
 		};
 
-		mediaPlayer.setDataSource(clip);
+		mediaPlayer.setDataSource("audio/" + clip + ".wav");
 		mediaPlayer.prepare();
 
 		this.clips.push( mediaPlayer );
@@ -4416,7 +4520,7 @@ class SoundPool {
 	}
 
 	play(clipId, leftVolume, rightVolume, priority, loop, rate) {
-		this.clips[clipId].play();
+		this.clips[clipId].start();
 	}
 
 	pause(clipId) {
@@ -4452,10 +4556,7 @@ class SoundPool {
 	}
 
 	setOnLoadCompleteListener(onLoadCompleteListener) {
-		let self = this;
-		this.onLoadCompleteListener = function(idx) {
-			onLoadCompleteListener.onLoadComplete(self, idx, 0);
-		};
+		this.onLoadCompleteListener = onLoadCompleteListener;
 	}
 }
 
@@ -4512,7 +4613,6 @@ Log.v = function() {
 // Debug
 Log.d = function() {
 	console.debug.apply(this, arguments);
-	// debugger;
 };
 
 // Info
